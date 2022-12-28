@@ -1,9 +1,3 @@
-// For pinout chart see documentation
-// RS485 module 
-// #define RS485R0 0
-// #define RS485TX 1
-// #define RS485DI A3
-
 // Display
 #define DISPLAY_ADDR 0x3C // I2C Address - use 0x3C or 0x3D depending on your display --> Display connects A4 A5 <--
 // Zivan Control - Don't forget the REF signal.

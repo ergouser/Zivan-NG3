@@ -31,14 +31,17 @@ void ledState(uint8_t color);
 
 // 'constants' - depend upon your model.
 unsigned long POWER_BOARD_RESISTOR = 280000; //value in ohms of the R20 resistor(s) on the power board. Somewhere in the neighbourhood of: 24V=92k, 72V=280k, 96v = 390k, 144V = 560k
-uint16_t U_POT_RESISTANCE = 1000; // The value of the left U pot - In the middle, then adjust the pot so SET_mVOLTAGE matches real voltage (measure with DMM)
+uint16_t U_POT_RESISTANCE = 1750; // The value of the left U pot - In the middle, then adjust the pot so SET_mVOLTAGE matches real voltage (measure with DMM)
+// More theory on good scaling: Set here to 2k - %actualVrange (from 2k -> 0) as SET_mVOLTAGE is from 'actual' voltagerange (actualMax - actualMin)
 uint16_t R9 = 6800; // R9 is in series with U_POT.
-float maxRatedAmps = 22000; //What is on the sticker? // probably the real max is quite a bit higher. I have a feeling that lowering voltage DOES enable you to use higher currents, at your own risk. So changing R20 is all you need.
+float maxRatedAmps = 26400; //What is on the sticker? // probably the real max is quite a bit higher. I have a feeling that changing voltage, also changes (max) current, but at your own risk. So changing R20 is all you need.
+// More theory: There are a few 'power versions'. ie max power or a lower power version of the NG3. Max power is 72V35A - 36A, lesser power is 26.4As. I have a 96V22A model, so that is the 'lower power' version ie I use the lower power 72V rating.
+
 
 // settings
 uint16_t SET_mCURRENT = 1000;   // Max AMPS - Constant Current phase. Can be same or lower than maxRatedAmps. >>LOW FOR NOW, NOT SURE WHAT OUTCOME IS IF HIGH<<
 uint16_t SET_CUTOFF_mAMPS = 200;    // Min amps for CV to idle. Rule of thumb = C/20. So for a 230Ah pack, 230/20 = 11.5A = 11500mA. >>TESTING TBD<<
-unsigned long SET_mVOLTAGE = 81600; //-- CC to CV flipover point / max mV -- 3.4V * 24 cells = 81.6V = 81600mV for my pack. Set your desired voltage HERE. Then adjust Vpot to spec.
+unsigned long SET_mVOLTAGE = 70000; //-- CC to CV flipover point / max mV -- 3.4V * 24 cells = 81.6V = 81600mV for my pack. Set your desired voltage HERE. Then adjust Vpot to spec.
 
 // ----- END OF SETTINGS
 
@@ -64,10 +67,13 @@ unsigned long idlingSince = 0;
 uint8_t voltage_pot_bits; 
 uint8_t current_pot_bits;
 
-float totalRes = (R9 + U_POT_RESISTANCE);
-unsigned long minVoltage = (((totalRes + POWER_BOARD_RESISTOR)/totalRes)*1954); // Define min and max voltage this controller can instruct - mV 
-unsigned long maxVoltage = (((totalRes + POWER_BOARD_RESISTOR)/totalRes)*2710); // PB:280k + R9 6.8k + POT: = 82.4V - 114.2 / UPOT@2k = 64.1V - 88.9V
-float voltageRange = (maxVoltage - minVoltage); 
+float totalRes; // = (R9 + U_POT_RESISTANCE);
+unsigned long minVoltage; // = (((totalRes + POWER_BOARD_RESISTOR)/totalRes)*1954); // Define min and max voltage this controller can instruct - mV 
+unsigned long maxVoltage; // = (((totalRes + POWER_BOARD_RESISTOR)/totalRes)*2710); // PB:280k + R9 6.8k + POT: = 82.4V - 114.2 / UPOT@2k = 64.1V - 88.9V
+float voltageRange; // = (maxVoltage - minVoltage); 
+
+unsigned long actualMin;
+unsigned long actualMax;
 
 /////////////////////////////////////////////////////////////
 //SETUP STARTS HERE//////////////////////////////////////////
@@ -100,18 +106,24 @@ void setup() {
   digitalWrite(SS, HIGH); //Ensure charger output is disable at startup
   digitalWrite(SlaveSelect, HIGH);
 
+
   totalRes = (R9 + U_POT_RESISTANCE);
-  minVoltage = (((totalRes + POWER_BOARD_RESISTOR)/totalRes)*1954); // Define min and max voltage this controller can instruct - mV 
+  minVoltage = (((totalRes + POWER_BOARD_RESISTOR)/totalRes)*1954); // Define min and max voltage this controller can instruct based on set POT. 
   maxVoltage = (((totalRes + POWER_BOARD_RESISTOR)/totalRes)*2710); // PB:280k + R9 6.8k + POT: = 82.4V - 114.2 / UPOT@2k = 64.1V - 88.9V
-  voltageRange = (maxVoltage - minVoltage);  //--might need unsigned long if exceeding 65V range 
+  voltageRange = (maxVoltage - minVoltage);
+
+  actualMin = ((((float)R9 + 2000 + POWER_BOARD_RESISTOR)/(R9 + 2000))*1954); //Assuming pot is at 2k
+  actualMax = ((((float)R9 + POWER_BOARD_RESISTOR)/R9)*2710); //Assuming pot is at 0.
+
 
   //Check if the set voltage is OK
-  if (SET_mVOLTAGE > maxVoltage || SET_mVOLTAGE < minVoltage) {
+  if (SET_mVOLTAGE > actualMax || SET_mVOLTAGE < actualMin) {
     #ifdef DEBUG
     Serial.println("...failed! Set Voltage outside perimeters");
-    Serial.print("SET: "), Serial.print(SET_mVOLTAGE), Serial.print("   MAX:"), Serial.print(maxVoltage), Serial.print("   MIN:"), Serial.print(minVoltage);
+    Serial.print("SET: "), Serial.print(SET_mVOLTAGE), Serial.print("   MAX:"), Serial.print(actualMax), Serial.print("   MIN:"), Serial.print(actualMin);
     Serial.print("   totalRes:"), Serial.print(totalRes), Serial.print("  PBR"), Serial.println(POWER_BOARD_RESISTOR);
     #endif
+    display->printFailure(0);
     while(1) {
       buzzerHIGH(200);    //let them know settings are incorrect
       delay(200);
@@ -146,7 +158,7 @@ void loop() {
   set_cv(voltage_pot_bits);
   current_pot_bits = ((SET_mCURRENT/maxRatedAmps)*256); // Better is to measure and make your own equation
   delay (200);
-  set_cc(current_pot_bits);
+  set_cc(2); // Low start
 
   #ifdef DEBUG
   Serial.println("Beep!");
@@ -195,9 +207,10 @@ while(1) {
       state = CONSTANT_CURRENT; //Switch to CC mode 
 
       digitalWrite(ZSS, LOW); // Pull SoftStart low to enable output
-
       ledState(RED);
-    
+      delay(100);
+      set_cc(current_pot_bits); //Now go to full power.
+
     
     } else if (state == CONSTANT_CURRENT) { 
       if (voltage >= SET_mVOLTAGE) {  
@@ -206,7 +219,6 @@ while(1) {
         #endif
 
         state = CONSTANT_VOLTAGE;
-
         ledState (YELLOW);
       }
 
@@ -223,13 +235,13 @@ while(1) {
 
         digitalWrite(ZSS, HIGH); // Disable output
 
-        if (millis() < 1000) {   // Check how fast we gone through
+        if (millis() < 1100 && voltage > (SET_mVOLTAGE+1000)) { //Overshoot only when battery not connected //indicate failure
 
           #ifdef DEBUG
           Serial.println("NO BATTERY CONNECTED / REACHED IDLE STATE in <1000MS");
           #endif
           digitalWrite(FANS, LOW); //fans off
-
+          display->printFailure(1);
           while(1) {
             ledState(OFF);
             buzzerHIGH(200);    // No battery connected
@@ -240,7 +252,7 @@ while(1) {
           }
         }
       } 
-
+      // Note max current is still limited by CC settings.
       if (TPmode == 0) { 
         if (current < 1000) { 
           ledState(GREEN);
@@ -256,9 +268,9 @@ while(1) {
       display->off();
       digitalWrite(FANS, LOW); // Turn off fans - we cool by now.
       #ifdef DEBUG
-      Serial.println("IDLE -> DARK -- Housten we're going dark!");
+      Serial.println("IDLE -> DARK -- Houston we're going dark!");
       #endif 
-      state = DARK; // to prevent updating screen.
+      state = DARK; // to prevent updating screen. s
       }
 
     //kick the watchdog, 1.0 - 1.6sec timeout

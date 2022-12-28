@@ -19,26 +19,26 @@ Display::Display() {
 void Display::printData(float Voltage, float Current, int mode) { 
    
     display->clearDisplay();
+    display->setTextColor(WHITE);
     display->setTextSize(2);
-
-    display->setCursor(10,10);
+    display->setCursor(2, 10);
     display->print("V");
-    display->setCursor(25, 10);
+    display->setCursor(20, 10);
     if (Voltage == 0) { 
         display->print("< min");
     } else {
         display->print(Voltage, 1);
     } 
 
-    display->setCursor(10,40);
+    display->setCursor(2,40);
     display->print("A");
-    display->setCursor(25, 40);
+    display->setCursor(20, 40);
     display->print(Current, 1);
 
     //print mode on right side of screen
-    display->setCursor(134, 25);
+    display->setCursor(90, 10);
     if (mode == 0) { 
-        display->print("IDLE");
+        display->print("OFF");
     } else if ( mode == 1) { 
         display->print("SS");
     } else if (mode == 2) { 
@@ -50,7 +50,24 @@ void Display::printData(float Voltage, float Current, int mode) {
     display->display();
 };
 
+void Display::printFailure(int error) { 
+    display->clearDisplay();
+    display->setTextColor(WHITE);
+    display->setTextSize(2);
+    display->setCursor(2, 10);
+    display->print("ERROR");
+    display->setTextSize(1);
+    display->setCursor(2,40);
+    if (error == 0) {
+    display->print("Vs>max // Vs<min");
+    } else if (error == 1) { 
+        display->print("NO BATTERY");
+    }
+   display->display();
+};
+
+
 void Display::off() { 
     display->clearDisplay();
     display->display();
-}
+};

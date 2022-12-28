@@ -11,4 +11,5 @@ class Display
     Display(); // init
     void off(); // turn off screen
     void printData(float Voltage, float Current, int mode);
-};
+    void printFailure(int error);
+    };
