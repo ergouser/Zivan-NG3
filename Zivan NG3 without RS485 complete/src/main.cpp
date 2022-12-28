@@ -6,9 +6,12 @@ Greatly inspired by Dave Mellick from CustomCircuitSolutions and some insight fr
 
 Original forum topic that got me started on this: https://www.diyelectriccar.com/threads/ng3-chargers-cant-current-limit-on-lithium-batteries.64827/page-1
 
-NOTE: THE COOLING FINS ON THE NG3 ARE AC OR +vBAT, NO TOUCHING! 
+NOTE: THE COOLING FINS ON THE NG3 ARE AC OR +vBAT >>!!NO TOUCHING!!<< 
+NOTE: MAKE SURE THE ARDUINO IS POWERED OFF WHEN PLUGGING IN THE AC POWER
+NOTE: UNPLUGGING & REPLUGGING AC POWER TOO QUICKLY CAN RESULT IN vHIGH INRUSH CURRENT
+NOTE: USE AT YOUR OWN RISK!
 
-VOLTAGE PART IS TESTED, CURRENT SETTINGS NOT
+SEE README FOR IMPLEMENTATION INSTRUCTIONS
 */
 
 #define DEBUG //comment to disable - for final deployment
