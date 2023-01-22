@@ -6,15 +6,12 @@ Greatly inspired by Dave Mellick from CustomCircuitSolutions and some insight fr
 
 Original forum topic that got me started on this: https://www.diyelectriccar.com/threads/ng3-chargers-cant-current-limit-on-lithium-batteries.64827/page-1
 
-NOTE: THE COOLING FINS ON THE NG3 ARE AC OR +vBAT >>!!NO TOUCHING!!<< 
-NOTE: MAKE SURE THE ARDUINO IS POWERED OFF WHEN PLUGGING IN THE AC POWER
-NOTE: UNPLUGGING & REPLUGGING AC POWER TOO QUICKLY CAN RESULT IN vHIGH INRUSH CURRENT
-NOTE: USE AT YOUR OWN RISK!
+NOTE: THE COOLING FINS ON THE NG3 ARE AC OR +vBAT, NO TOUCHING! 
 
-SEE README FOR IMPLEMENTATION INSTRUCTIONS
+VOLTAGE PART IS QUITE STABLE, CURRENT ONLY TESTED ON LOW AMPS. PLEASE START AT LOW AMPS AND WORK YOUR WAY UP.
 */
 
-#define DEBUG //comment to disable - for final deployment
+#define DEBUG //comment to disable - for final deployment --> Know that you have to unplug the USB before turning on the Zivan, then connect again.
 
 #include <Arduino.h>
 #include <SPI.h>
@@ -28,10 +25,11 @@ void buzzerHIGH(uint16_t ms);
 void buzzerLOW(uint16_t ms);
 void ledState(uint8_t color);
 
-// ----- SETTINGS
+/////////////////////////////////////////////////////////////
+//USER ZIVAN SETTINGS -> Change to YOUR model////////////////
+/////////////////////////////////////////////////////////////
 
 // R20 next to battery out -> Somewhere in the neighbourhood of: 24V=92k, 72V=280k?, 96v = 390k, 144V = 560k
-
 // 'constants' - depend upon your model.
 unsigned long POWER_BOARD_RESISTOR = 280000; //value in ohms of the R20 resistor(s) on the power board. Somewhere in the neighbourhood of: 24V=92k, 72V=280k, 96v = 390k, 144V = 560k
 uint16_t U_POT_RESISTANCE = 1750; // The value of the left U pot - In the middle, then adjust the pot so SET_mVOLTAGE matches real voltage (measure with DMM)
@@ -41,12 +39,16 @@ float maxRatedAmps = 26400; //What is on the sticker? // probably the real max i
 // More theory: There are a few 'power versions'. ie max power or a lower power version of the NG3. Max power is 72V35A - 36A, lesser power is 26.4As. I have a 96V22A model, so that is the 'lower power' version ie I use the lower power 72V rating.
 
 
-// settings
+/////////////////////////////////////////////////////////////
+//BATTERY SETTINGS -> DEPEND ON YOUR PACK!///////////////////
+/////////////////////////////////////////////////////////////
 uint16_t SET_mCURRENT = 1000;   // Max AMPS - Constant Current phase. Can be same or lower than maxRatedAmps. >>LOW FOR NOW, NOT SURE WHAT OUTCOME IS IF HIGH<<
 uint16_t SET_CUTOFF_mAMPS = 200;    // Min amps for CV to idle. Rule of thumb = C/20. So for a 230Ah pack, 230/20 = 11.5A = 11500mA. >>TESTING TBD<<
 unsigned long SET_mVOLTAGE = 70000; //-- CC to CV flipover point / max mV -- 3.4V * 24 cells = 81.6V = 81600mV for my pack. Set your desired voltage HERE. Then adjust Vpot to spec.
 
-// ----- END OF SETTINGS
+/////////////////////////////////////////////////////////////
+//END OF SETTINGS/////MESS ON YOUR OWN RISK BEYOND HERE//////
+/////////////////////////////////////////////////////////////
 
 Display *display;
 uint8_t counter = 0;
@@ -60,7 +62,7 @@ uint8_t state = SOFTSTART;
 enum Color {OFF, RED, YELLOW, GREEN};
 uint8_t color = OFF;
 
-// def -- all values are in mV or mA.
+// def -- all values are in mV or mA /x1000
 unsigned long voltage; 
 unsigned long current;
 unsigned long lastVoltage;
