@@ -67,7 +67,7 @@ Extension built into the casing
 ![Extension](/images/extension.jpeg)
 
 Everything in the Zivan, used 2 layers of battery pack crimping stuff to isolate it
-![Built into Zivan](../images/Builtin.jpeg)
+![Built into Zivan](/images/Builtin.jpeg)
 
 Installing PlatformIO plugin
 ![Installing PlatformIO](/images/platformio.png)
@@ -92,7 +92,7 @@ Now the fun begins.. getting all voltages aligned.
 3) Change 'voltage_offset' so that sensed voltage == actual voltage == set voltage
 
 Adjust the pots (left is current, right is Voltage) 
-![Change pots](/images/Pots.png)
+![Change pots](/images/Pots.jpg)
 
 Actions for PlatformIO, V to check code, arrow to write to Arduino (make sure its connected)
 ![Actions bar](/images/Actions.png)
