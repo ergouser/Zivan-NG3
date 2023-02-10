@@ -61,19 +61,19 @@ CPU Removed
 ![CPU removed](/images/CPU_removed.jpeg)
 
 Connected to extra socket on the table (used hotglue to secure)
-![All connected](/images/all_together.jpeg)
+![All connected](/images/connected.jpeg)
 
 Extension built into the casing
-![Extension](/images/extension.jpeg)
+![Extension](/images/Extension.jpeg)
 
 Everything in the Zivan, used 2 layers of battery pack crimping stuff to isolate it
 ![Built into Zivan](/images/Builtin.jpeg)
 
 Installing PlatformIO plugin
-![Installing PlatformIO](/images/platformio.png)
+![Installing PlatformIO](/images/Platformio.png)
 
 Install python
-![Python](/images/python.png)
+![Python](/images/Python.png)
 
 Downloading the github repository
 ![Download ZIP](/images/ZIP.png)
