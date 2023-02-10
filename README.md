@@ -58,33 +58,33 @@ Questions: Please reach out on Discord: itsPointless#6048
 <summary>Images</summary>
 
 CPU Removed 
-![CPU removed](../images/CPU_removed.jpeg)
+![CPU removed](/images/CPU_removed.jpeg)
 
 Connected to extra socket on the table (used hotglue to secure)
-![All connected](../images/all_together.jpeg)
+![All connected](/images/all_together.jpeg)
 
 Extension built into the casing
-![Extension](../images/extension.jpeg)
+![Extension](/images/extension.jpeg)
 
 Everything in the Zivan, used 2 layers of battery pack crimping stuff to isolate it
 ![Built into Zivan](../images/Builtin.jpeg)
 
 Installing PlatformIO plugin
-![Installing PlatformIO](../images/platformio.png)
+![Installing PlatformIO](/images/platformio.png)
 
 Install python
-![Python](../images/python.png)
+![Python](/images/python.png)
 
 Downloading the github repository
-![Download ZIP](../images/ZIP.png)
+![Download ZIP](/images/ZIP.png)
 
 Opening the project in PlatformIO
-![Open Project](../images/Open_project.png)
+![Open Project](/images/Open_project.png)
 
 -> Navigate to the unpacked ZIP folder
 
 Change settings to your desires
-![Settings](../images/Settings.png)
+![Settings](/images/Settings.png)
 
 Now the fun begins.. getting all voltages aligned.
 1) Set voltage in settings, calculate what voltage pot should be & put in.
@@ -92,19 +92,19 @@ Now the fun begins.. getting all voltages aligned.
 3) Change 'voltage_offset' so that sensed voltage == actual voltage == set voltage
 
 Adjust the pots (left is current, right is Voltage) 
-![Change pots](../images/Pots.png)
+![Change pots](/images/Pots.png)
 
 Actions for PlatformIO, V to check code, arrow to write to Arduino (make sure its connected)
-![Actions bar](../images/Actions.png)
+![Actions bar](/images/Actions.png)
 
-![Check](../images/Check.png)
+![Check](/images/Check.png)
 
-![Write](../images/Write.png)
+![Write](/images/Write.png)
 
-![Confirm voltage](../images/Confirm.jpeg)
+![Confirm voltage](/images/Confirm.jpeg)
 
 Now all connected, inside & pushed.
-![Python](../images/working.jpeg)
+![Python](/images/working.jpeg)
 
 
 </details>
