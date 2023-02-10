@@ -10,6 +10,6 @@ class Display
     public:
     Display(); // init
     void off(); // turn off screen
-    void printData(float Voltage, float Current, int mode);
+    void printData(float Voltage, float Current, int mode, int TEMP);
     void printFailure(int error);
     };

@@ -16,7 +16,7 @@ Display::Display() {
 };
 
 
-void Display::printData(float Voltage, float Current, int mode) { 
+void Display::printData(float Voltage, float Current, int mode, int TEMP) { 
    
     display->clearDisplay();
     display->setTextColor(WHITE);
@@ -62,6 +62,8 @@ void Display::printFailure(int error) {
     display->print("Vs>max // Vs<min");
     } else if (error == 1) { 
         display->print("NO BATTERY");
+    } else if (error == 2) { 
+        display->print("OVERTEMP");
     }
    display->display();
 };
