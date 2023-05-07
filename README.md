@@ -60,14 +60,19 @@ Questions: Please reach out on Discord: itsPointless#6048
 CPU Removed 
 ![CPU removed](/images/CPU_removed.jpeg)
 
-Connected to extra socket on the table (used hotglue to secure)
-![All connected](/images/connected.jpeg)
+Created a tiny circuitboard from a prototype board & 28 pin DIP sockets. 
+The square one fits the 2.54 pinstrips. the round one doesn't. But they fit eachother...
+
+Expect to spend 2-3 hours of soldering...
+![Made a circuit board](/images/connected.jpg)
+![All connected](/images/circuit_board.jpg)
 
 Extension built into the casing
 ![Extension](/images/Extension.jpeg)
 
 Everything in the Zivan, used 2 layers of battery pack crimping stuff to isolate it
-![Built into Zivan](/images/Builtin.jpeg)
+![Built into Zivan](/images/Builtin.jpg)
+![Built into Zivan](/images/detail.jpg)
 
 Installing PlatformIO plugin
 ![Installing PlatformIO](/images/Platformio.png)
@@ -109,4 +114,35 @@ Now all connected, inside & pushed.
 
 </details>
 
+
+### TIPS On how to get your voltages and currents in line.
+To be really fair, I don't know, but here's what I think and tried:
+
+#### Voltage: 
+1) Make sure R20 values correct, otherwise this will all fail
+2) set your U_POT to the calculation %scale 
+	1) Example; I want 70v. Calculate min and max with pot at 1k. Let's say that's 66v and 92v = 26v range. Now 70-66=4. 4/26 = 0.15 -> 2k - 0.15*2k = 1700. For 70v I set this U_POT_VALUE here to 1700. Adjust the actual pot later to match the voltage. You could also use pot at the extremes (2k for min, 0 for high) - It's just a guideline.
+3) Set your charger on PSU_MODE (uncomment PSU_OVERRIDE) - and right Voltage.
+4) Adjust the actual voltage pot on the board, so the voltage on your multimeter reads the same as whatever you put in.
+5) Now adjust correctionFactor so it matches. This only corrects for the change after minVoltage.
+Example: lets say I want 90v, I put in 90v in SET_mVOLTAGE, I also adjusted the pot so I'm reading 90V with the DMM. Screen / DEBUG tells me the Zivan reads 91.2v
+Min is 66v, max is 99. range therefore is 23. 1.2v/23 5% higher. So my correction factor is 95(%).
+
+
+
+#### Current
+You have to confirm the current is actually right at the cutoff amps and the max. This whole current reading thing is a bit janky, it doesn't quite work perfectly, I'll admit, but that doesn't really matter.
+
+-> What you want, is that whatever you set, the charger actually outputs around this current, and adjust the pot so it does (this you can do quite exact).
+
+-> Also you want it to call quits at the right current, this is how:
+
+1) Change SET_mCURRENT to, say 1A and then 8A and check what comes out. If this is radically different(ie, not 1A and 8A, but 3A and 12A?) something is wrong with the MAX_RATED_AMPS. ' radically different ' is in this case, more than 1A different. You don't have to chase it, but you should be able to. - Also check if the current 'sensed' is within proportions. If this is very different from actual, let me know, something for better current sensing is in the workshop.
+
+2) If you're satisfied you can jump up to the 25A. Then check again. If you have done your job well at 1A and 8A, 25A should be right around the mark. You can now adjust the current pot so it's exactly 25A.
+
+3) now set it to your desired cutoff_mAmps (5000 in our case). Confirm this is coming out (kinda), then check what the current reading (from the sense part - screen or debug) is telling you. THIS is your new CutOff mAmps. That's the janky part, not actually being able to accurately read this current. This seems like the only way to get both right. Thing is, if its not 5.0A but 6A or 4.5A, it doesn't matter, really. It's just important it's not 5mA and overcharging the battery to death or 20A and not charging the battery full.
+
+4) To actually confirm this cutoff is working correctly ->
+You could set the 'set voltage' lower than your actual charging voltage, so you can check & see it going through the different stages realtime and not have to wait for ages till it's actually full and then discharge to see the whole procedure again. (You can set it a bit higher everytime which allows you to check it multiple times on one charge! effeciency!)
 
