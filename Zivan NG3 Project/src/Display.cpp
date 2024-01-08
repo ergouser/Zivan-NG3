@@ -44,29 +44,34 @@ void Display::printInit(unsigned long setVoltage, char16_t setCurrent, char16_t 
     display->display();
 }
 
-void Display::printData(float Voltage, float Current, int mode, int TEMP) { 
+void Display::printData(float Voltage, float Current, int mode, float mAh, int TEMP) { 
    
     display->clearDisplay();
     display->setTextColor(WHITE);
     display->setTextSize(2);
-    display->setCursor(2, 10);
+    display->setCursor(2, 2);
     display->print("V");
-    display->setCursor(20, 10);
+    display->setCursor(20, 2);
     if (Voltage == 0) { 
         display->print("< min");
     } else {
         display->print(Voltage, 1);
-    } 
+    }
 
-    display->setCursor(2,40);
+    display->setCursor(2,26);
     display->print("A");
-    display->setCursor(20, 40);
+    display->setCursor(20, 26);
     display->print(Current, 1);
 
+    display->setCursor(2,50);
+    display->print("Ah");
+    display->setCursor(35, 50);
+    display->print(mAh < 1000 ? mAh : mAh/1000.f);
+
     //print mode on right side of screen
-    display->setCursor(90, 10);
+    display->setCursor(90, 2);
     if (mode == 0) { 
-        display->print("idle");
+        display->print("off");
     } else if ( mode == 1) { 
         display->print("SS");
     } else if (mode == 2) { 
