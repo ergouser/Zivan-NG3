@@ -1,0 +1,13 @@
+_initialization: CODE, 29790 0 72
+___ftpack: CODE, 30026 0 238
+_set_cv: CODE, 29566 0 38
+_main: CODE, 31742 0 1026
+___lwtoft: CODE, 29642 0 46
+___ftadd: CODE, 31172 0 570
+_get_sample: CODE, 29736 0 54
+_set_cc: CODE, 29604 0 38
+___ftmul: CODE, 30854 0 318
+___fttol: CODE, 30550 0 304
+___ftge: CODE, 29862 0 164
+___ftdiv: CODE, 30264 0 286
+Total: 3154
