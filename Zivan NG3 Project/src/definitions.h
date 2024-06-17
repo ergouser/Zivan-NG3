@@ -13,6 +13,7 @@
 #define SOUNDER 6
 #define LED1 7
 #define LED2 8
+#define STOP 2
 #define TEMP_IN A6 //Overtemp ; gives a voltage correlating to the internal temp sensor. 
 
 //Not used yet

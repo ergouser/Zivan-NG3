@@ -17,6 +17,8 @@ VOLTAGE PART IS QUITE STABLE, CURRENT ONLY TESTED ON LOW AMPS. PLEASE START AT L
 #include <Arduino.h>
 #include <SPI.h>
 #include <Wire.h>
+#include <SSD1306Ascii.h>
+#include <SSD1306AsciiWire.h>
 #include "definitions.h"
 #include "Display.h"
 
@@ -25,6 +27,7 @@ void set_cv(uint8_t value);
 void buzzerHIGH(uint16_t ms);
 void buzzerLOW(uint16_t ms);
 void ledState(uint8_t color);
+void setState(uint8_t color);
 
 
 /////////////////////////////////////////////////////////////
@@ -33,24 +36,26 @@ void ledState(uint8_t color);
 
 // R20 next to battery out -> Somewhere in the neighbourhood of: 24V=92k, 72V=270k, 96v = 390k, 144V = 560k
 // 'constants' - depend upon your model.
-const unsigned long POWER_BOARD_RESISTOR = 280000; //value in ohms of the R20 resistor(s) on the power board. Mine is 280k which I put in myself.
-const uint16_t U_POT_RESISTANCE = 1750; // The value of the left U pot - In the middle, then adjust the pot so SET_mVOLTAGE matches real voltage (measure with DMM)
+// const unsigned long POWER_BOARD_RESISTOR =220000 //220 kΩ on 220V in/60V out charger - 50.8 to 70.5 volts. (Has two 5%)
+const unsigned long POWER_BOARD_RESISTOR = 470000; //value in ohms of the R20 resistor(s) on the power board. 470k on the 120V charger
+//const unsigned long POWER_BOARD_RESISTOR = 560000; //value in ohms of the R20 resistor(s) on the power board. 560k on the 220V/144V(?) charger
+const uint16_t U_POT_RESISTANCE = 2000; // The value of the left U pot - In the middle, then adjust the pot so SET_mVOLTAGE matches real voltage (measure with DMM)
 // More theory on good scaling: Set here to 2k - %actualVrange (from 2k -> 0) as SET_mVOLTAGE is from 'actual' voltagerange (actualMax - actualMin)
 // Example; I want 70v. Calculate min and max with pot at 1k. Let's say that's 66v and 92v = 26v range. Now 70-66=4. 4/26 = 0.15 -> 2k - 0.15*2k = 1700. For 70v I set this U_POT_RESISTANCE value here to 1700. Adjust the actual pot later to match the voltage
 const uint16_t R9 = 6800; // R9 is in series with U_POT - supposedly always 6.8k
-const uint16_t maxRatedAmps = 26400; //What is on the sticker? // probably the real max is quite a bit higher. I have a feeling that changing voltage, also changes (max) current, but at your own risk. So changing R20 is all you need.
+const uint16_t maxRatedAmps = 20000; //What is on the sticker? // probably the real max is quite a bit higher. I have a feeling that changing voltage, also changes (max) current, but at your own risk. So changing R20 is all you need.
 // More theory: There are a few 'power versions'. ie max power or a lower power version of the NG3. Max power is 72V35A - 36A, lesser power is 26.4As. I have a 96V22A model, so that is the 'lower power' version ie I use the lower power 72V rating.
 
 /////////////////////////////////////////////////////////////
 //BATTERY SETTINGS -> DEPEND ON YOUR PACK!///////////////////
 /////////////////////////////////////////////////////////////
-const uint16_t SET_mCURRENT = 2000;   // Max AMPS - Constant Current phase. Can be same or lower than maxRatedAmps. >>LOW FOR NOW, NOT SURE WHAT OUTCOME IS IF HIGH<<
-const uint16_t SET_CUTOFF_mAMPS = 500;    // Min amps for CV to idle. Rule of thumb = C/20. So for a 230Ah pack, 230/20 = 11.5A = 11500mA. >>TESTING TBD<<
-const unsigned long SET_mVOLTAGE = 68000; //-- CC to CV flipover point / max mV -- 3.4V * 24 cells = 81.6V = 81600mV for my pack. Set your desired voltage HERE. Then adjust Vpot to spec.
+const uint16_t SET_mCURRENT = 15000;   // Max AMPS - Constant Current phase. Can be same or lower than maxRatedAmps. >>LOW FOR NOW, NOT SURE WHAT OUTCOME IS IF HIGH<<
+const uint16_t SET_CUTOFF_mAMPS = 10000;    // Min amps for CV to idle. Rule of thumb = C/20. So for a 230Ah pack, 230/20 = 11.5A = 11500mA. >>TESTING TBD<<
+const unsigned long SET_mVOLTAGE = (long)(36*3.4*1000); //-- CC to CV flipover point / max mV -- 3.4V * 24 cells = 81.6V = 81600mV for my pack. Set your desired voltage HERE. Then adjust Vpot to spec.
 
 #define OVERTEMP 100 //NO Clue what this is. It's close to 0 when cold. Might ramp up quickly when overtemp. Range between 0-1024 (analogread). Exceeding this puts Zivan in overtemp protection - max is calculated to be 3.75v or 3.75v/5v*1024 = 768
-#define PSU_OVERRIDE //Comment to disable - if defined, the Zivan will run in PSU mode, independant of TP jumper.
-//#define DEBUG //comment to disable - for final deployment --> Know that you have to unplug the USB before turning on the Zivan, then connect again.
+//#define PSU_OVERRIDE //Comment to disable - if defined, the Zivan will run in PSU mode, independant of TP jumper.
+#define DEBUG //comment to disable - for final deployment --> Know that you have to unplug the USB before turning on the Zivan, then connect again.
 //#define SELF_RESET //comment to disable - defining this, enables self reset after 20 min after an overtemp scenario. Otherwise goes DARK (Fans off, LED=RED, no output, screen shows error)
 const int correctionFactor = 101; //100 = base - Voltage offset for the sensing part. Has no influence on the 'output'  part - theyre unconnected. However, If the sensed voltage is way lower than actual, it might never go into CV mode & quit.
 // A higher  correctionFactor makes it read a higher voltage than it actually is. Only changes the ' voltage range ' not minvoltage.
@@ -60,15 +65,16 @@ const int correctionFactor = 101; //100 = base - Voltage offset for the sensing 
 //END OF SETTINGS/////MESS ON YOUR OWN RISK BEYOND HERE//////
 /////////////////////////////////////////////////////////////
 
-Display *display;
+//Display *display;
 uint8_t counter = 0;
 bool charge_mode;
 unsigned long lastUpdate;
 unsigned long startTime;
 
 // State machine
-enum States {IDLE, SOFTSTART, CONSTANT_CURRENT, CONSTANT_VOLTAGE, DARK};
-uint8_t state = SOFTSTART; 
+enum States {IDLE, SOFTSTART, CONSTANT_CURRENT, CONSTANT_VOLTAGE, DARK, BMSOVR};
+void setState(enum States from, enum States to);
+enum States state = SOFTSTART; 
 // Colors
 enum Color {OFF, RED, YELLOW, GREEN};
 uint8_t color = OFF;
@@ -95,6 +101,8 @@ float mAh = 0;
 void(* resetFunc) (void) = 0;//declare reset function at address 0
 #endif
 
+Display display;
+
 
 /////////////////////////////////////////////////////////////
 //SETUP STARTS HERE//////////////////////////////////////////
@@ -102,12 +110,14 @@ void(* resetFunc) (void) = 0;//declare reset function at address 0
 
 
 void setup() {
+ 
   #ifdef DEBUG
   Serial.begin(9600);
-  Serial.println("setup...");
-  #endif
-  
-  display = new Display();
+  Serial.println(F("setup..."));
+ #endif
+
+
+
 
   // Essentials
   pinMode(ZSS, OUTPUT);
@@ -122,12 +132,19 @@ void setup() {
   pinMode(SOUNDER, OUTPUT);
   pinMode(LED1, OUTPUT);
   pinMode(LED2, OUTPUT);
+  pinMode(STOP, INPUT);  // message from BMS to stop charging.
   //pinMode(TP, INPUT);
   //pinMode(AH, INPUT);
   pinMode(TEMP_IN, INPUT);
   //pinMode(AUX1, OUTPUT);
   //pinMode(AUX2, OUTPUT);
 
+      Wire.begin();
+display.begin();
+  #ifdef DEBUG
+  Serial.println(F("display..."));
+  #endif
+  
   // Start up with Soft start and Chip select HIGH
   digitalWrite(ZSS, HIGH); //Ensure charger output is disable at startup
   digitalWrite(SlaveSelect, HIGH); 
@@ -144,27 +161,29 @@ void setup() {
   charge_mode = true;
   #endif
   
-  display->printInit(SET_mVOLTAGE, SET_mCURRENT, SET_CUTOFF_mAMPS, charge_mode); // Print settings
+  display.printInit(SET_mVOLTAGE, SET_mCURRENT, SET_CUTOFF_mAMPS, charge_mode, (uint16_t)(POWER_BOARD_RESISTOR/1000), minVoltage/1000.0, maxVoltage/1000.0); // Print settings
+        delay(5000);
+
 
   //delay(2000);
   //Check if the set voltage is OK. 
   if (SET_mVOLTAGE > maxVoltage || SET_mVOLTAGE < minVoltage) {
     #ifdef DEBUG
-    Serial.println("Set v outside range");
-    Serial.print("SET: "), Serial.print(SET_mVOLTAGE), Serial.print("   MAX:"), Serial.print(maxVoltage), Serial.print("   MIN:"), Serial.print(minVoltage);
-    Serial.print("   totRes"), Serial.print(totalRes), Serial.print("  PBR"), Serial.println(POWER_BOARD_RESISTOR);
+    Serial.println(F("Set v outside range"));
+    Serial.print(F("SET: ")), Serial.print(SET_mVOLTAGE), Serial.print(F("   MAX:")), Serial.print(maxVoltage), Serial.print(F("   MIN:")), Serial.print(minVoltage);
+    Serial.print(F("   totRes")), Serial.print(totalRes), Serial.print(F("  PBR")), Serial.println(POWER_BOARD_RESISTOR);
     #endif
-    display->minVoltage = minVoltage;
-    display->maxVoltage = maxVoltage;
-    display->setVoltage = SET_mVOLTAGE;
-    display->printFailure(0);
+    display.minVoltage = minVoltage;
+    display.maxVoltage = maxVoltage;
+    display.setVoltage = SET_mVOLTAGE;
+    display.printFailure(0);
     while(millis() < 60000) {
       buzzerHIGH(200);    //let be known settings are incorrect
       delay(200);
       buzzerHIGH(500);
       delay(200);
     }
-    state = DARK;
+    setState (state, DARK);
   }
 
   // Init digiPot SPI link - AD8402 that actually does the most important job here.
@@ -175,7 +194,7 @@ void setup() {
   digitalWrite(FANS, HIGH); // Fans on
 
   #ifdef DEBUG
-  Serial.println("..OK");
+  Serial.println(F("..OK"));
   #endif
 }
 
@@ -196,9 +215,10 @@ void loop() {
   
 
   #ifdef DEBUG
-  Serial.println("Beep!");
+  Serial.println(F("Beep!"));
   #endif
   buzzerHIGH(200); // 200 ms beep - to announce we're ready for take-off
+  display.off();
 
   while(1) {
     // WATCHDOG
@@ -210,7 +230,7 @@ void loop() {
     voltage = (((analogRead(VOLTAGE_IN)/1024.f)*voltageRange)*(correctionFactor/100.f) + minVoltage);
     #ifdef alternative_current
     current = (analogRead(CURRENT_IN)/1024.f)*(2550000/(voltage/1000.f)); //The 2550*1000 comes from 3000W*0.85% efficiency - still prob doesn't equate, but OK.
-    //TheoryTime, The 'shunt' in the reverse engineered diagram would actually assume it's linear. But that assumes its measuring currents going out the FETS, I think it's currents going INTO the FETs and therefore NOT linear. 
+    //TheoryTime, The 'shunt' in  the reverse engineered diagram would actually assume it's linear. But that assumes its measuring currents going out the FETS, I think it's currents going INTO the FETs and therefore NOT linear. 
     //I think this because the idea is that there is only one version of the Zivan power board - with R20 and 21 swapped out as desired. 
     #else
     current = ((analogRead(CURRENT_IN)/1024.f)*maxRatedAmps); // this probably doesn't equate.
@@ -222,11 +242,11 @@ void loop() {
     if (TEMP>=OVERTEMP && millis()>5000) { //Overtemp?? No clue how this equates to actual temp. BUT, this should be monitored atleast.
       digitalWrite(ZSS, HIGH); //Disable output, even before our Wdog does it.
       #ifdef DEBUG
-      Serial.println("overtemp!: ");
+      Serial.println(F("overtemp!: "));
       Serial.println(TEMP);
       #endif
-      display->Temp = TEMP;
-      display->printFailure(2);
+      display.Temp = TEMP;
+      display.printFailure(2);
         while((lastUpdate + 12e5) > millis()) { //20 min of this annoying sound
           ledState(OFF);
           buzzerHIGH(200);    
@@ -242,26 +262,28 @@ void loop() {
 
       ledState(RED); //Otherwise RED led, Fans OFF & dark so the screen stays on error.
       digitalWrite(FANS, LOW);    
-      state = DARK;
+      //setState(state,DARK); //DARK;
       } // END OF OVERTEMP
     
     //ON DISPLAY
     if (state != DARK && (lastUpdate+200) < millis()) {  //millis over 2000, so gives some time  to read the settings.
       
       mAh += current*(millis()-lastUpdate)/float(3600000);
-      display->printData(((voltage<(minVoltage+120)? 0 : voltage)/(float)1000), (current/(float)1000), charge_mode? state : 4, mAh, TEMP); //"voltage" will always be >= minVoltage, even with 0 analogRead. +125 makes sure one voltage byte is covered.
+  
+      //display.printData(((voltage<(minVoltage+120)? 0 : voltage)/(float)1000), (current/(float)1000), charge_mode? state : 99, mAh, TEMP); //"voltage" will always be >= minVoltage, even with 0 analogRead. +125 makes sure one voltage byte is covered.
+      display.printData(((voltage<(minVoltage+120)? 0 : voltage)/(float)1000), (current/(float)1000), state, mAh, SET_mVOLTAGE/1000.0, TEMP); //"voltage" will always be >= minVoltage, even with 0 analogRead. +125 makes sure one voltage byte is covered.
       lastUpdate = millis();
 
       // DEBUG
-      #ifdef DEBUG
-      Serial.print("V:"), Serial.print(voltage/(float)1000), Serial.print("_A:"), Serial.print(current/(float)1000);
-      Serial.print("_VB:"), Serial.print(analogRead(VOLTAGE_IN)), Serial.print("_IB:"), Serial.print(analogRead(CURRENT_IN));
-      Serial.print("_State:"), Serial.print(state);
-      Serial.print("_VPB:"), Serial.print(voltage_pot_bits);
-      Serial.print("_CPB:"), Serial.print(current_pot_bits);
-      // Serial.print("   SET:"), Serial.print(SET_mVOLTAGE), Serial.print("   MAX:"), Serial.print(maxVoltage), Serial.print("    MIN:"), Serial.println(minVoltage);
-      Serial.print("_MODE"), Serial.print(charge_mode);
-      Serial.print("_T:"), Serial.println(TEMP);
+      #ifdef DEBUG1
+      Serial.print(F("V:")), Serial.print(voltage/(float)1000), Serial.print(F("_A:")), Serial.print(current/(float)1000);
+      Serial.print(F("_VB:")), Serial.print(analogRead(VOLTAGE_IN)), Serial.print(F("_IB:")), Serial.print(analogRead(CURRENT_IN));
+      Serial.print(F("_State:")), Serial.print(state);
+      Serial.print(F("_VPB:")), Serial.print(voltage_pot_bits);
+      Serial.print(F("_CPB:")), Serial.print(current_pot_bits);
+      // Serial.print(F("   SET:"), Serial.print(SET_mVOLTAGE), Serial.print(F("   MAX:"), Serial.print(maxVoltage), Serial.print(F("    MIN:"), Serial.println(minVoltage);
+      Serial.print(F("_MODE")), Serial.print(charge_mode);
+      Serial.print(F("_T:")), Serial.println(TEMP);
       #endif 
     } //End of routine Display
 
@@ -269,10 +291,10 @@ void loop() {
     #ifdef BATTERY_CHECK
     if (charge_mode == true && millis() < 10000 && voltage > (SET_mVOLTAGE+2000)) { //Overshoot only when battery not connected //indicate failure
       #ifdef DEBUG
-        Serial.println("Overshoot");
+        Serial.println(F("Overshoot"));
       #endif
       digitalWrite(ZSS, HIGH); //Turn off // We don't want people connecting the battery after turning on the power..
-      display->printFailure(1);
+      display.printFailure(1);
       while((lastUpdate + 10000) > millis()) {
         ledState(OFF);
         buzzerHIGH(200);    // No battery connected
@@ -282,9 +304,24 @@ void loop() {
         delay(200);
       } 
       digitalWrite(FANS, LOW); //fans off, if they werent already.. 
-      state = DARK;
+      setState(state,DARK);
     }
     #endif
+
+
+      #ifdef DEBUG
+       digitalRead (STOP);
+      //Serial.print(F("STOP ? - "), Serial.println( digitalRead (STOP));
+      #endif
+
+    // if the BMS has commanded stop, go to IDLE
+    if ( state != BMSOVR && digitalRead (STOP)) {
+      setState(state,BMSOVR);
+      idlingSince = millis();
+      #ifdef DEBUG
+      Serial.print(F("STOP Commanded - ")), Serial.print( digitalRead (STOP));
+      #endif
+    }
 
     //STATE MACHINE 
     // >>>>
@@ -294,22 +331,22 @@ void loop() {
       digitalWrite(ZSS, LOW); // Pull SoftStart low to enable output
       
       ledState(RED);
-      state = CONSTANT_CURRENT; //Switch to CC mode 
+      setState(state,CONSTANT_CURRENT); //Switch to CC mode 
       
       #ifdef DEBUG
-        Serial.println("SS-CC");
+        Serial.println(F("SS-CC"));
       #endif
 
     //CC
     } else if (state == CONSTANT_CURRENT) { 
-      Serial.println("at CC");
+      //Serial.println(F("at CC");
       if ((voltage+500) >= SET_mVOLTAGE && millis()>10000) {  //Added 500mV to compensate for any voltage errors. So it actually goes into CV mode to allow it to quit.
         
-        state = CONSTANT_VOLTAGE;
+        setState(state,CONSTANT_VOLTAGE);
         ledState (YELLOW);
        
         #ifdef DEBUG
-          Serial.println("CC-CV");
+          Serial.println(F("CC-CV"));
         #endif
       }
 
@@ -318,10 +355,10 @@ void loop() {
       delay(1);
       if (current <= SET_CUTOFF_mAMPS && charge_mode) {  
         #ifdef DEBUG
-        Serial.println("CV-IDLE");
+        Serial.println(F("CV-IDLE"));
         #endif
 
-        state = IDLE;
+        setState(state,IDLE);
         idlingSince = millis();
 
         ledState(GREEN);
@@ -341,25 +378,31 @@ void loop() {
       }
     
 
-    } else if (state == IDLE && (idlingSince + 12e5) < millis()) {  // turn off display after 20min of idling to prevent burn in.
-      display->off();
+    } else if ((state == IDLE || state == BMSOVR) && (idlingSince + 12e5) < millis()) {  // turn off display after 20min of idling to prevent burn in.
+      display.off();
       digitalWrite(FANS, LOW); // Turn off fans - we cool by now.
       #ifdef DEBUG
-      Serial.println("IDLE -> DARK");
+      Serial.println(F("IDLE -> DARK"));
       #endif 
-      state = DARK; // to prevent updating screen.
+      setState(state, DARK); // to prevent updating screen.
 
     } else if (state == DARK) {
       digitalWrite(ZSS, HIGH); //Make sure we're off - bitflips & all. 
       if (TEMP>OVERTEMP) { 
         digitalWrite(FANS, HIGH);
-        delay(60000);
+        delay(60000); // trips the watchdog 
         digitalWrite(FANS, LOW);
       }
+    } else if ( state == BMSOVR ) {
+      // unconditional turn off from any other state...
+      digitalWrite(ZSS, HIGH); // Disable output
+      ledState(YELLOW);  // not very useful...
     }
   
   } //end of while
   //code  to run if while loop broken
+  Serial.println(F("END of WHILE"));
+
 } // End of loop
 
 
@@ -367,6 +410,13 @@ void loop() {
 //END OF MAIN -- SUBROUTINES/////////////////////////////////
 /////////////////////////////////////////////////////////////
 
+// change state - allows debugging.
+void setState(enum States from, enum States to) {
+      #ifdef DEBUG
+      Serial.print(F("Change State: ")), Serial.print(from), Serial.print(F(" To ")), Serial.println(to);
+      #endif 
+      state = to;
+}
 
 
 // The AD8402 uses the last 10 bits it received when SS goes low - 
