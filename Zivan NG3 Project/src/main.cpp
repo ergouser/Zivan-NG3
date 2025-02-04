@@ -261,7 +261,7 @@ void loop() {
       #endif
 
       ledState(RED); //Otherwise RED led, Fans OFF & dark so the screen stays on error.
-      digitalWrite(FANS, LOW);    
+      digitalWrite(FANS, LOW);
       //setState(state,DARK); //DARK;
       } // END OF OVERTEMP
     
@@ -309,13 +309,8 @@ void loop() {
     #endif
 
 
-      #ifdef DEBUG
-       digitalRead (STOP);
-      //Serial.print(F("STOP ? - "), Serial.println( digitalRead (STOP));
-      #endif
-
     // if the BMS has commanded stop, go to IDLE
-    if ( state != BMSOVR && digitalRead (STOP)) {
+    if ( state != BMSOVR && !digitalRead (STOP)) {  // stop is NC, so should be 1 unless the BMS has kicked out for high cell voltage
       setState(state,BMSOVR);
       idlingSince = millis();
       #ifdef DEBUG
